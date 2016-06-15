@@ -4,6 +4,7 @@ import android.app.Activity;
 import android.content.Intent;
 import android.content.res.Configuration;
 import android.view.KeyEvent;
+import android.view.MotionEvent;
 import android.view.WindowManager;
 import android.widget.Toast;
 
@@ -21,7 +22,7 @@ public class Xposed implements IXposedHookZygoteInit, IXposedHookLoadPackage {
     private final static int DOWN = 1;
 
     private static Activity currentActivity;
-    private static boolean flagKeepScreenOn;
+    private static boolean flagKeepScreenOn, isTouch;
 
 
     @Override
@@ -32,6 +33,34 @@ public class Xposed implements IXposedHookZygoteInit, IXposedHookLoadPackage {
             @Override
             protected void afterHookedMethod(MethodHookParam param) throws Throwable {
                 currentActivity = (Activity) param.getResult();
+            }
+        });
+
+        //check wheter the user is touching or not
+        findAndHookMethod(Activity.class, "onTouchEvent", MotionEvent.class, new XC_MethodHook() {
+            @Override
+            protected void afterHookedMethod(MethodHookParam param) throws Throwable {
+                if (!(param.args[0] instanceof MotionEvent)) {
+                    param.setResult(true);
+                    return;
+                }
+                MotionEvent event = (MotionEvent) param.args[0];
+
+                int X = (int) event.getX();
+                int Y = (int) event.getY();
+
+                int eventaction = event.getAction();
+                switch (eventaction) {
+                    case MotionEvent.ACTION_DOWN:
+                        isTouch = true;
+                        break;
+                    case MotionEvent.ACTION_MOVE:
+                        break;
+                    case MotionEvent.ACTION_UP:
+                        isTouch = false;
+                        break;
+                }
+                param.setResult(true);
             }
         });
 
@@ -57,12 +86,12 @@ public class Xposed implements IXposedHookZygoteInit, IXposedHookLoadPackage {
                 }
                 int keyCode = (int) param.args[0];
 
-                if (keyCode == KeyEvent.KEYCODE_VOLUME_DOWN) {
+                if (keyCode == KeyEvent.KEYCODE_VOLUME_DOWN && isTouch) {
                     //volume down: set flag FLAG_KEEP_SCREEN_ON
                     param.setResult(true);
                     XposedBridge.log("key down consumed, screen should stay on");
                     setFlagKeepScreenOn(true);
-                } else if (keyCode == KeyEvent.KEYCODE_VOLUME_UP) {
+                } else if (keyCode == KeyEvent.KEYCODE_VOLUME_UP && isTouch) {
                     //volume up: clear flag FLAG_KEEP_SCREEN_ON
                     param.setResult(true);
                     XposedBridge.log("key up consumed, screen should stay off");
