@@ -57,6 +57,8 @@ public class Xposed implements IXposedHookZygoteInit, IXposedHookLoadPackage {
             }
         });
 
+        /*
+        has unexpected behaviour
         //reset the flag on screen rotation -> onConfigurationChanged(Configuration config)
         findAndHookMethod(Activity.class, "onConfigurationChanged", Configuration.class, new XC_MethodHook() {
             @Override
@@ -65,7 +67,7 @@ public class Xposed implements IXposedHookZygoteInit, IXposedHookLoadPackage {
                 Toast.makeText(currentActivity, "rotation change, resetting keepScreenOn", Toast.LENGTH_SHORT).show();
                 setFlagKeepScreenOn(flagKeepScreenOn);
             }
-        });
+        });*/
 
         //listen for KeyDown events
         findAndHookMethod(Activity.class, "onKeyDown", int.class, KeyEvent.class, new XC_MethodHook() {
