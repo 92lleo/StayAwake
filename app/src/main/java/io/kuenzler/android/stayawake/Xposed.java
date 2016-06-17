@@ -18,12 +18,11 @@ import static de.robv.android.xposed.XposedHelpers.findAndHookMethod;
 
 public class Xposed implements IXposedHookZygoteInit, IXposedHookLoadPackage {
 
-    private final static int UP = 0;
-    private final static int DOWN = 1;
-
     private static Activity currentActivity;
     private static boolean flagKeepScreenOn, isTouch;
 
+    private static boolean upPressed = false;
+    private static boolean downPressed = false;
 
     @Override
     public void initZygote(StartupParam param) throws Throwable {
@@ -44,17 +43,11 @@ public class Xposed implements IXposedHookZygoteInit, IXposedHookLoadPackage {
                     param.setResult(true);
                     return;
                 }
-                MotionEvent event = (MotionEvent) param.args[0];
 
-                int X = (int) event.getX();
-                int Y = (int) event.getY();
-
-                int eventaction = event.getAction();
-                switch (eventaction) {
+                int eventAction = ((MotionEvent) param.args[0]).getAction();
+                switch (eventAction) {
                     case MotionEvent.ACTION_DOWN:
                         isTouch = true;
-                        break;
-                    case MotionEvent.ACTION_MOVE:
                         break;
                     case MotionEvent.ACTION_UP:
                         isTouch = false;
@@ -85,21 +78,48 @@ public class Xposed implements IXposedHookZygoteInit, IXposedHookLoadPackage {
                     param.setResult(false);
                 }
                 int keyCode = (int) param.args[0];
-
-                if (keyCode == KeyEvent.KEYCODE_VOLUME_DOWN && isTouch) {
-                    //volume down: set flag FLAG_KEEP_SCREEN_ON
-                    param.setResult(true);
-                    XposedBridge.log("key down consumed, screen should stay on");
-                    setFlagKeepScreenOn(true);
-                } else if (keyCode == KeyEvent.KEYCODE_VOLUME_UP && isTouch) {
-                    //volume up: clear flag FLAG_KEEP_SCREEN_ON
-                    param.setResult(true);
-                    XposedBridge.log("key up consumed, screen should stay off");
-                    setFlagKeepScreenOn(false);
+                if (keyCode == KeyEvent.KEYCODE_VOLUME_DOWN) {
+                    if (upPressed) {
+                        upPressed = false;
+                        setFlagKeepScreenOn(!flagKeepScreenOn);
+                        param.setResult(true);
+                    } else {
+                        downPressed = true;
+                        param.setResult(false);
+                    }
+                } else if (keyCode == KeyEvent.KEYCODE_VOLUME_UP) {
+                    if (downPressed) {
+                        downPressed = false;
+                        setFlagKeepScreenOn(!flagKeepScreenOn);
+                        param.setResult(true);
+                    } else {
+                        upPressed = true;
+                        param.setResult(false);
+                    }
                 } else if (keyCode == KeyEvent.KEYCODE_BACK && currentActivity.getPackageName().contains("io.kuenzler.android.stayawake")) {
                     //TODO: debug msg
-                    param.setResult(true);
+                    param.setResult(false);
                     Toast.makeText(currentActivity, "KEEP_SCREEN_ON is " + isFlagKeepScreenOn(), Toast.LENGTH_SHORT).show();
+                }
+
+
+            }
+        });
+
+        //listen for KeyDown events
+        findAndHookMethod(Activity.class, "onKeyUp", int.class, KeyEvent.class, new XC_MethodHook() {
+            @Override
+            protected void beforeHookedMethod(MethodHookParam param) throws Throwable {
+                XposedBridge.log("KeyUp detected - " + currentActivity.getPackageName());
+
+                if (!(param.args[0] instanceof Integer)) {
+                    param.setResult(false);
+                }
+                int keyCode = (int) param.args[0];
+                if (keyCode == KeyEvent.KEYCODE_VOLUME_DOWN) {
+                    downPressed = false;
+                } else if (keyCode == KeyEvent.KEYCODE_VOLUME_UP) {
+                    upPressed = false;
                 }
             }
         });
