@@ -2,6 +2,7 @@ package io.kuenzler.android.stayawake;
 
 import android.app.AlertDialog;
 import android.content.DialogInterface;
+import android.content.SharedPreferences;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
 import android.util.Log;
@@ -13,7 +14,8 @@ public class MainActivity extends AppCompatActivity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
-
+        SharedPreferences pref = getSharedPreferences("user_settings", MODE_WORLD_READABLE);
+        pref.edit().putLong("time", System.currentTimeMillis()).apply(); //for testing
         if (!isModuleActive()) {
             xposedAlert();
         } else {
@@ -39,6 +41,7 @@ public class MainActivity extends AppCompatActivity {
                     }
                 })
                 .setIcon(android.R.drawable.ic_dialog_alert)
+                //.setKey
                 .show();
     }
 

@@ -12,5 +12,107 @@
     <TextView
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:text="Hello World!" />
+        android:text="-- GUI NOT WORKING YET! --\nTo toggle per app user KEY-BACK + VOL-DOWN\nTo toggle systemwide use KEY-BACK + VOL-UP"
+        android:id="@+id/textView2" />
+
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:textAppearance="?android:attr/textAppearanceMedium"
+        android:text="1st Key"
+        android:id="@+id/l1stKey"
+        android:layout_below="@+id/textView2"
+        android:layout_alignStart="@+id/textView2"
+        android:layout_marginTop="28dp" />
+
+    <Button
+        style="?android:attr/buttonStyleSmall"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Vol-up"
+        android:id="@+id/b1stKey"
+        android:layout_below="@+id/l1stKey"
+        android:layout_alignStart="@+id/l1stKey" />
+
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:textAppearance="?android:attr/textAppearanceMedium"
+        android:text="2nd Key"
+        android:id="@+id/l2ndKey"
+        android:layout_alignTop="@+id/l1stKey"
+        android:layout_alignParentEnd="true" />
+
+    <Button
+        style="?android:attr/buttonStyleSmall"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Vol-Down"
+        android:id="@+id/b2ndKey"
+        android:layout_below="@+id/l2ndKey"
+        android:layout_alignParentEnd="true" />
+
+    <RadioButton
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Affect every app"
+        android:id="@+id/rbEveryApp"
+        android:layout_marginTop="75dp"
+        android:checked="false"
+        android:layout_below="@+id/b1stKey"
+        android:layout_alignParentStart="true" />
+
+    <RadioButton
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Affect only app in foreground"
+        android:id="@+id/rbAffectSingleApp"
+        android:checked="false"
+        android:layout_below="@+id/lRadioButtons"
+        android:layout_alignParentLeft="true" />
+
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:textAppearance="?android:attr/textAppearanceSmall"
+        android:text="Trigger behaviour"
+        android:id="@+id/lRadioButtons"
+        android:layout_below="@+id/b1stKey"
+        android:layout_marginTop="31dp" />
+
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:textAppearance="?android:attr/textAppearanceSmall"
+        android:text="  "
+        android:id="@+id/lEmpty"
+        android:layout_below="@+id/rbEveryApp"
+        android:layout_alignStart="@+id/rbEveryApp" />
+
+    <RadioButton
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Foreground with 2nd Key, every app with 3rd key"
+        android:id="@+id/rbBoth"
+        android:layout_below="@+id/lEmpty"
+        android:layout_alignParentStart="true"
+        android:checked="false" />
+
+    <Button
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="HOME"
+        android:id="@+id/b3rdKey"
+        android:layout_below="@+id/rbBoth"
+        android:layout_alignParentStart="true" />
+
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:textAppearance="?android:attr/textAppearanceMedium"
+        android:text="3rd key"
+        android:id="@+id/l3rdKey"
+        android:layout_alignTop="@+id/b3rdKey"
+        android:layout_toEndOf="@+id/b3rdKey" />
+
 </RelativeLayout>
