@@ -2,8 +2,13 @@ package io.kuenzler.android.stayawake;
 
 import android.app.Activity;
 import android.content.Intent;
+import android.inputmethodservice.Keyboard;
+import android.os.Build;
+import android.os.PowerManager;
 import android.view.KeyEvent;
 import android.view.MotionEvent;
+import android.view.View;
+import android.view.ViewConfiguration;
 import android.view.WindowManager;
 import android.widget.Toast;
 
@@ -20,14 +25,22 @@ public class Xposed implements IXposedHookZygoteInit, IXposedHookLoadPackage {
 
     public static final int VOL_DOWN = KeyEvent.KEYCODE_VOLUME_DOWN;
     public static final int VOL_UP = KeyEvent.KEYCODE_VOLUME_UP;
-    public static final int HOME = KeyEvent.KEYCODE_HOME;
+    public static final int HOME = KeyEvent.KEYCODE_HOME; // not working
     public static final int BACK = KeyEvent.KEYCODE_BACK;
     public static final int MENU = KeyEvent.KEYCODE_MENU;
     public static final int CAMERA = KeyEvent.KEYCODE_CAMERA;
-    public static final int POWER = KeyEvent.KEYCODE_POWER;
+    public static final int POWER = KeyEvent.KEYCODE_POWER; // not working
+    public static final int RECENT = KeyEvent.KEYCODE_APP_SWITCH; //not working
+    public static final int SEARCH = KeyEvent.KEYCODE_SEARCH;
 
-    public static final int SYSTEM = 0;
-    public static final int APP = 1;
+    public static final int LONG_PRESS_TIMEOUT = ViewConfiguration.getLongPressTimeout();
+
+    public static final int TYPE_SYSTEM = 0;
+    public static final int TYPE_APP = 1;
+
+    public static final int METHOD_LONG_PRESS = 0;
+    public static final int METHOD_TWO_KEYS = 1;
+    public static final int METHOD_TEST = 2;
 
     private static Activity currentActivity;
     private static boolean flagKeepScreenOn, systemwideScreenOn, isTouch;
@@ -37,19 +50,20 @@ public class Xposed implements IXposedHookZygoteInit, IXposedHookLoadPackage {
     //private static boolean active = true;
     private static boolean[] activeKeyPressed = new boolean[3];
     private static int[] activeKeys = new int[3];
+    private static long[] lastKeyDown = new long[3];
 
+    private static int currentMethode = -1;
     private static long lastUpdate = 0L;
-
 
     @Override
     public void initZygote(StartupParam param) throws Throwable {
-
         //set current activity for later reference
         findAndHookMethod(android.app.Instrumentation.class, "newActivity", ClassLoader.class, String.class, Intent.class, new XC_MethodHook() {
             @Override
             protected void afterHookedMethod(MethodHookParam param) throws Throwable {
                 currentActivity = (Activity) param.getResult();
                 pref = new XSharedPreferences("io.kuenzler.android.stayawake", "user_settings");
+                currentMethode = METHOD_TEST; //TODO: prefs
                 readPrefs();
             }
         });
@@ -60,14 +74,14 @@ public class Xposed implements IXposedHookZygoteInit, IXposedHookLoadPackage {
             protected void beforeHookedMethod(MethodHookParam param) throws Throwable {
                 readPrefs();
                 if (systemwideScreenOn) {
-                    setFlagKeepScreenOn(systemwideScreenOn, APP);
+                    setFlagKeepScreenOn(systemwideScreenOn, TYPE_APP);
                 }
                 Toast.makeText(currentActivity, "on resume, systemwide: " + String.valueOf(systemwideScreenOn) + ", app: " + String.valueOf(flagKeepScreenOn), Toast.LENGTH_SHORT).show();
             }
         });
 
         //check wheter the user is touching or not
-        findAndHookMethod(Activity.class, "onTouchEvent", MotionEvent.class, new XC_MethodHook() {
+        XC_MethodHook touchEvent = new XC_MethodHook() {
             @Override
             protected void afterHookedMethod(MethodHookParam param) throws Throwable {
                 readPrefs();
@@ -87,78 +101,134 @@ public class Xposed implements IXposedHookZygoteInit, IXposedHookLoadPackage {
                 }
                 param.setResult(true);
             }
-        });
+        };
+        findAndHookMethod(Activity.class, "onTouchEvent", MotionEvent.class, touchEvent);
+        findAndHookMethod(View.class, "onTouchEvent", MotionEvent.class, touchEvent);
+
 
         //listen for KeyDown events
         findAndHookMethod(Activity.class, "onKeyDown", int.class, KeyEvent.class, new XC_MethodHook() {
             @Override
             protected void beforeHookedMethod(MethodHookParam param) throws Throwable {
                 readPrefs();
-                XposedBridge.log("KeyDown detected - " + currentActivity.getPackageName());
-
                 //check param and set keyCode
                 if (!(param.args[0] instanceof Integer)) {
                     param.setResult(false);
                 }
                 int keyCode = (int) param.args[0];
-                if (keyCode == activeKeys[0]) {
-                    if (activeKeyPressed[1]) {
-                        activeKeyPressed[1] = false;
-                        setFlagKeepScreenOn(!flagKeepScreenOn, APP);
-                        param.setResult(true);
-                    } else if (activeKeyPressed[2]) {
-                        activeKeyPressed[2] = false;
-                        setFlagKeepScreenOn(!systemwideScreenOn, SYSTEM);
-                        param.setResult(true);
-                    } else {
-                        activeKeyPressed[0] = true;
-                        param.setResult(false);
+                KeyEvent evt = (KeyEvent) param.args[1];
+                XposedBridge.log("KeyDown detected - " + currentActivity.getPackageName());
+
+
+                if (currentMethode == METHOD_LONG_PRESS) {
+                    // long press stuff
+                    for (int i = 0; i <= 2; i++) {
+                        //save last key down time for long press
+                        if (keyCode == activeKeys[i]) {
+                            lastKeyDown[i] = System.currentTimeMillis();
+                            evt.startTracking();
+                        }
                     }
-                } else if (keyCode == activeKeys[1]) {
-                    if (activeKeyPressed[0]) {
-                        activeKeyPressed[0] = false;
-                        setFlagKeepScreenOn(!flagKeepScreenOn, APP);
-                        param.setResult(true);
-                    } else {
-                        activeKeyPressed[1] = true;
-                        param.setResult(false);
+
+                } else if (currentMethode == METHOD_TWO_KEYS) {
+                    // two key stuff
+                    if (keyCode == activeKeys[0]) {
+                        if (activeKeyPressed[1]) {
+                            activeKeyPressed[1] = false;
+                            setFlagKeepScreenOn(!flagKeepScreenOn, TYPE_APP);
+                            param.setResult(true);
+                        } else if (activeKeyPressed[2]) {
+                            activeKeyPressed[2] = false;
+                            setFlagKeepScreenOn(!systemwideScreenOn, TYPE_SYSTEM);
+                            param.setResult(true);
+                        } else {
+                            activeKeyPressed[0] = true;
+                            param.setResult(false);
+                        }
+                    } else if (keyCode == activeKeys[1]) {
+                        if (activeKeyPressed[0]) {
+                            activeKeyPressed[0] = false;
+                            setFlagKeepScreenOn(!flagKeepScreenOn, TYPE_APP);
+                            param.setResult(true);
+                        } else {
+                            activeKeyPressed[1] = true;
+                            param.setResult(false);
+                        }
+                    } else if (keyCode == activeKeys[2]) {
+                        if (activeKeyPressed[0]) {
+                            activeKeyPressed[0] = false;
+                            setFlagKeepScreenOn(!systemwideScreenOn, TYPE_SYSTEM);
+                            param.setResult(true);
+                        } else {
+                            activeKeyPressed[2] = true;
+                            param.setResult(false);
+                        }
                     }
-                } else if (keyCode == activeKeys[2]) {
-                    if (activeKeyPressed[0]) {
-                        activeKeyPressed[0] = false;
-                        setFlagKeepScreenOn(!systemwideScreenOn, SYSTEM);
+
+                } else if (currentMethode == METHOD_TEST) {
+                    Toast.makeText(currentActivity, "test", Toast.LENGTH_SHORT).show();
+                    // test stuff
+                    if (keyCode == activeKeys[0]) {
+                        //ignore
+                    } else if (keyCode == activeKeys[1] && isTouch) {
+
+                        setFlagKeepScreenOn(!flagKeepScreenOn, TYPE_APP);
                         param.setResult(true);
-                    } else {
-                        activeKeyPressed[2] = true;
-                        param.setResult(false);
+
+                    } else if (keyCode == activeKeys[2] && isTouch) {
+                        setFlagKeepScreenOn(!systemwideScreenOn, TYPE_SYSTEM);
+                        param.setResult(true);
                     }
-                } else if (keyCode == BACK && currentActivity.getPackageName().contains("io.kuenzler.android.stayawake")) {
+
+                } else {
+                    //wrong method
+                    throw new IllegalStateException("No method set");
+                }
+
+                //debug output
+                if (keyCode == BACK && currentActivity.getPackageName().contains("io.kuenzler.android.stayawake")) {
                     //TODO: debug msg
                     param.setResult(false);
-                    Toast.makeText(currentActivity, "KEEP_SCREEN_ON is " + isFlagKeepScreenOn(), Toast.LENGTH_SHORT).show();
+                    Toast.makeText(currentActivity, "back key, systemwide: " + String.valueOf(systemwideScreenOn) + ", app: " + String.valueOf(flagKeepScreenOn), Toast.LENGTH_SHORT).show();
                 }
             }
         });
 
         //listen for KeyUp events
         findAndHookMethod(Activity.class, "onKeyUp", int.class, KeyEvent.class, new XC_MethodHook() {
-            @Override
-            protected void beforeHookedMethod(MethodHookParam param) throws Throwable {
-                readPrefs();
-                XposedBridge.log("KeyUp detected - " + currentActivity.getPackageName());
-                if (!(param.args[0] instanceof Integer)) {
-                    param.setResult(false);
+                    @Override
+                    protected void beforeHookedMethod(MethodHookParam param) throws Throwable {
+                        readPrefs();
+                        XposedBridge.log("KeyUp detected - " + currentActivity.getPackageName());
+                        if (!(param.args[0] instanceof Integer)) {
+                            param.setResult(false);
+                        }
+                        int keyCode = (int) param.args[0];
+
+                        if (currentMethode == METHOD_LONG_PRESS) {
+                            //long press stuff
+                            if (keyCode == activeKeys[0] && lastKeyDown[0] != -1 && (System.currentTimeMillis() - lastKeyDown[0] > LONG_PRESS_TIMEOUT)) {
+                                // not used
+                            } else if (keyCode == activeKeys[1] && lastKeyDown[1] != -1 && (System.currentTimeMillis() - lastKeyDown[1] > LONG_PRESS_TIMEOUT)) {
+                                setFlagKeepScreenOn(!flagKeepScreenOn, TYPE_APP);
+                            } else if (keyCode == activeKeys[2] && lastKeyDown[2] != -1 && (System.currentTimeMillis() - lastKeyDown[2] > LONG_PRESS_TIMEOUT)) {
+                                setFlagKeepScreenOn(!systemwideScreenOn, TYPE_SYSTEM);
+                            }
+
+                        } else if (currentMethode == METHOD_TWO_KEYS) {
+                            //two key stuff
+                            for (int i = 0; i <= 2; i++) {
+                                //"release" key
+                                if (keyCode == activeKeys[i]) {
+                                    activeKeyPressed[i] = false;
+                                }
+                            }
+                        } else if (currentMethode == METHOD_TEST) {
+                            //ignore
+                        }
+                    }
                 }
-                int keyCode = (int) param.args[0];
-                if (keyCode == activeKeys[0]) {
-                    activeKeyPressed[0] = true;
-                } else if (keyCode == activeKeys[1]) {
-                    activeKeyPressed[1] = true;
-                } else if (keyCode == activeKeys[2]) {
-                    activeKeyPressed[2] = false;
-                }
-            }
-        });
+        );
     }
 
     /**
@@ -166,6 +236,7 @@ public class Xposed implements IXposedHookZygoteInit, IXposedHookLoadPackage {
      *
      * @return true if set, false if not set
      */
+
     public boolean isFlagKeepScreenOn() {
         int flags, flag;
         flags = currentActivity.getWindow().getAttributes().flags;
@@ -184,7 +255,7 @@ public class Xposed implements IXposedHookZygoteInit, IXposedHookLoadPackage {
      * @return true if flag is set, flase if not set
      */
     private boolean setFlagKeepScreenOn(boolean keepScreenOn, int type) {
-        if (type == SYSTEM) {
+        if (type == TYPE_SYSTEM) {
             systemwideScreenOn = flagKeepScreenOn = keepScreenOn;
             if (keepScreenOn) {
                 currentActivity.getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
@@ -194,7 +265,7 @@ public class Xposed implements IXposedHookZygoteInit, IXposedHookLoadPackage {
             setSystemwide(keepScreenOn);
             Toast.makeText(currentActivity, "KEEP_SCREEN_ON is " + isFlagKeepScreenOn() + " systemwide", Toast.LENGTH_SHORT).show();
             return isFlagKeepScreenOn();
-        } else if (type == APP) {
+        } else if (type == TYPE_APP) {
             flagKeepScreenOn = keepScreenOn;
             if (keepScreenOn) {
                 currentActivity.getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
@@ -221,9 +292,12 @@ public class Xposed implements IXposedHookZygoteInit, IXposedHookLoadPackage {
         if (!(System.currentTimeMillis() - lastUpdate > 2000)) {
             return;
         }
-        activeKeys[0] = pref.getInt("key1", BACK);
-        activeKeys[1] = pref.getInt("key2", VOL_DOWN);
-        activeKeys[2] = pref.getInt("key3", VOL_UP);
+        //activeKeys[0] = pref.getInt("key1", BACK);
+        //activeKeys[1] = pref.getInt("key2", VOL_DOWN);
+        //activeKeys[2] = pref.getInt("key3", VOL_UP);
+        activeKeys[0] = BACK;
+        activeKeys[1] = VOL_DOWN;
+        activeKeys[2] = VOL_UP;
         //active = pref.getBoolean("enabled", true);
         systemwideScreenOn = pref.getBoolean("systemwide", false);
         lastUpdate = System.currentTimeMillis();
@@ -238,6 +312,11 @@ public class Xposed implements IXposedHookZygoteInit, IXposedHookLoadPackage {
         Intent toggle_system = new Intent("stayawake.intent.action.TOGGLE_SYSTEM");
         toggle_system.putExtra("systemwide", systemwide);
         currentActivity.sendBroadcast(toggle_system);
+    }
+
+    private boolean isScreenOn() {
+        PowerManager powerManager = (PowerManager) currentActivity.getSystemService(Activity.POWER_SERVICE);
+        return Build.VERSION.SDK_INT >= Build.VERSION_CODES.KITKAT_WATCH && powerManager.isInteractive() || Build.VERSION.SDK_INT < Build.VERSION_CODES.KITKAT_WATCH && powerManager.isScreenOn();
     }
 
     @Override
