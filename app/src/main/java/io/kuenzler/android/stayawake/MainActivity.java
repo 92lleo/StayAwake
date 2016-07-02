@@ -2,6 +2,7 @@ package io.kuenzler.android.stayawake;
 
 import android.app.AlertDialog;
 import android.content.DialogInterface;
+import android.content.IntentFilter;
 import android.content.SharedPreferences;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
@@ -22,6 +23,12 @@ public class MainActivity extends AppCompatActivity {
             Toast.makeText(this, "[Debug] Xposed module is active", Toast.LENGTH_SHORT).show();
         }
         Log.i("StayAwake", String.valueOf(isModuleActive()));
+
+    }
+
+    @Override
+    public void onResume(){
+        super.onResume();
 
     }
 
