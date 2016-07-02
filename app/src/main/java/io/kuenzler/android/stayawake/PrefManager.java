@@ -7,12 +7,15 @@ import android.content.SharedPreferences;
 import android.os.Bundle;
 import android.util.Log;
 
+import de.robv.android.xposed.XposedBridge;
+
 /**
  * Created by leonhard on 21.06.2016.
  */
 public class PrefManager extends BroadcastReceiver {
 
     public static final String TOGGLE_SYSTEM = "stayawake.intent.action.TOGGLE_SYSTEM";
+    public static final String BOOT_COMPLETED = "android.intent.action.BOOT_COMPLETED";
 
 
     @Override
@@ -21,7 +24,6 @@ public class PrefManager extends BroadcastReceiver {
         pref.edit().putLong("time", System.currentTimeMillis());
 
         String action = intent.getAction();
-
         Bundle extras = intent.getExtras();
 
         if (TOGGLE_SYSTEM.equals(action)) {
@@ -34,6 +36,13 @@ public class PrefManager extends BroadcastReceiver {
                 //read prefs
             }
             pref.edit().putBoolean("systemwide", systemwide).commit();
+        } else if (BOOT_COMPLETED.equals(action)) {
+            //set systemwide disabled after reboot
+            if (pref.getBoolean("systemwide", false)) {
+                pref.edit().putBoolean("systemwide", false).commit();
+            }
+
+            XposedBridge.log("Boot: set systemwide to false in prefs");
         }
     }
 }

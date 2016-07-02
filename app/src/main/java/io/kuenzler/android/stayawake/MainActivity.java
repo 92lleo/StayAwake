@@ -2,11 +2,14 @@ package io.kuenzler.android.stayawake;
 
 import android.app.AlertDialog;
 import android.content.DialogInterface;
-import android.content.IntentFilter;
+import android.content.Intent;
 import android.content.SharedPreferences;
-import android.support.v7.app.AppCompatActivity;
+import android.net.Uri;
 import android.os.Bundle;
+import android.support.v7.app.AppCompatActivity;
 import android.util.Log;
+import android.view.View;
+import android.widget.TextView;
 import android.widget.Toast;
 
 public class MainActivity extends AppCompatActivity {
@@ -17,19 +20,24 @@ public class MainActivity extends AppCompatActivity {
         setContentView(R.layout.activity_main);
         SharedPreferences pref = getSharedPreferences("user_settings", MODE_WORLD_READABLE);
         pref.edit().putLong("time", System.currentTimeMillis()).apply(); //for testing
+        TextView textLink = (TextView) findViewById(R.id.tvLink);
         if (!isModuleActive()) {
             xposedAlert();
+            TextView text2 = (TextView) findViewById(R.id.tv2);
+            String message = "StayAwake is not active in Xposed Framework!\nThis can have more reasons:\n-Is the Xposed Framework installed?\n-Is the Xposed Installer App installed?\n" +
+                    "-Is StayAwake activated in the Xposed Installer App?\n-Did you reboot after the activation?";
+            text2.setText(message);
         } else {
             Toast.makeText(this, "[Debug] Xposed module is active", Toast.LENGTH_SHORT).show();
         }
+
         Log.i("StayAwake", String.valueOf(isModuleActive()));
 
     }
 
-    @Override
-    public void onResume(){
-        super.onResume();
-
+    public void showWebsite(View view) {
+        Intent browserIntent = new Intent(Intent.ACTION_VIEW, Uri.parse("http://www.kuenzler.io"));
+        startActivity(browserIntent);
     }
 
     private void xposedAlert() {

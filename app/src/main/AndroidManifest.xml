@@ -1,8 +1,10 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     package="io.kuenzler.android.stayawake"
-    android:versionCode="12"
-    android:versionName="0.4.3">
+    android:versionCode="13"
+    android:versionName="0.4.5">
+
+    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
 
     <application
         android:allowBackup="true"
@@ -17,8 +19,13 @@
             </intent-filter>
         </activity>
 
-        <receiver android:name=".PrefManager" >
+        <receiver
+            android:name=".PrefManager"
+            android:enabled="true"
+            android:exported="true"
+            android:permission="android.permission.RECEIVE_BOOT_COMPLETED">
             <intent-filter>
+                <action android:name="android.intent.action.BOOT_COMPLETED" />
                 <action android:name="stayawake.intent.action.TOGGLE_SYSTEM" />
             </intent-filter>
         </receiver>
@@ -28,7 +35,7 @@
             android:value="true" />
         <meta-data
             android:name="xposeddescription"
-            android:value="Easy toggle screen stay-awake with volume buttons" />
+            android:value="Easy toggle screen stay-awake with volume buttons to prevent screen timeout." />
         <meta-data
             android:name="xposedminversion"
             android:value="60" />
