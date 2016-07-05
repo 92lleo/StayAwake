@@ -331,7 +331,7 @@ public class Xposed implements IXposedHookZygoteInit, IXposedHookLoadPackage {
             if (flagKeepScreenOn) {
                 showToast("[StayAwake enabled]\n" + applicationLabel + " will stay awake");
             } else {
-                showToast("[StayAwake disabled]\n" + applicationLabel + " will use default screen timeout.");
+                showToast("[StayAwake disabled]\n" + applicationLabel + " will use default screen timeout");
             }
         } else {
             // should not happen
