@@ -1,8 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     package="io.kuenzler.android.stayawake"
-    android:versionCode="13"
-    android:versionName="0.4.5">
+    android:versionCode="15"
+    android:versionName="0.4.7">
 
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
 
@@ -38,6 +38,6 @@
             android:value="Easy toggle screen stay-awake with volume buttons to prevent screen timeout." />
         <meta-data
             android:name="xposedminversion"
-            android:value="60" />
+            android:value="54" />
     </application>
 </manifest>
