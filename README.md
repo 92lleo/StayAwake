@@ -1,5 +1,6 @@
 # StayAwake (Android Xposed Module)
-This module lets you keep the screen on for any app you want. just press volUp + volDown at the same time to toggle keepScreenOn. The app in foreground will stay awake until you press the power button or toggle again. In the next version you will be able to set different keys for the toggle action.
+This module lets you keep the screen on for any app you want. just press volUp + volDown at the same time to toggle keepScreenOn. The app in foreground will stay awake until you press the power button or toggle again. You're also able to disable the screen timeout for all apps in the modules UI. 
+In the next version you will be able to set different keys for the toggle action.
 
 ### Known From
 
@@ -17,7 +18,8 @@ This module supports SDK 15 (4.0.3 ICS) and higher as well as XposedBrigde versi
 ### Known Bugs
 Please report bugs and feature requests on here or write me to android@kuenzler.io
 
- - Seems not to work with pokemon go, see [Issue #4](https://github.com/92lleo/StayAwake/issues/4)
+ -  launcher icon hiding may not work properly on all devices. Clear app data if you face problems. 
+ -  when systemwide screen on was selected, it will be disabled on reboot. But on some devices (such as HTC One m8) this isn't working
 
 ### How It Works
 
