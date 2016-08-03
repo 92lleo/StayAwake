@@ -14,10 +14,13 @@ import android.widget.TextView;
 import android.widget.Toast;
 
 import java.util.HashMap;
+import java.util.LinkedList;
+import java.util.List;
 
 import de.robv.android.xposed.IXposedHookLoadPackage;
 import de.robv.android.xposed.IXposedHookZygoteInit;
 import de.robv.android.xposed.XC_MethodHook;
+import de.robv.android.xposed.XSharedPreferences;
 import de.robv.android.xposed.XposedBridge;
 import de.robv.android.xposed.callbacks.XC_LoadPackage;
 
@@ -27,13 +30,13 @@ public class Xposed implements IXposedHookZygoteInit, IXposedHookLoadPackage {
 
     public static final int VOL_DOWN = KeyEvent.KEYCODE_VOLUME_DOWN;
     public static final int VOL_UP = KeyEvent.KEYCODE_VOLUME_UP;
-    public static final int HOME = KeyEvent.KEYCODE_HOME; // not working
     public static final int BACK = KeyEvent.KEYCODE_BACK;
     public static final int MENU = KeyEvent.KEYCODE_MENU;
     public static final int CAMERA = KeyEvent.KEYCODE_CAMERA;
+    public static final int SEARCH = KeyEvent.KEYCODE_SEARCH;
+    public static final int HOME = KeyEvent.KEYCODE_HOME; // not working
     public static final int POWER = KeyEvent.KEYCODE_POWER; // not working
     public static final int RECENT = KeyEvent.KEYCODE_APP_SWITCH; //not working
-    public static final int SEARCH = KeyEvent.KEYCODE_SEARCH;
 
     public static final int LONG_PRESS_TIMEOUT = 1100; //ViewConfiguration.getLongPressTimeout();
     public static final int SHORT_PRESS_TIMEOUT = 210;
@@ -43,17 +46,18 @@ public class Xposed implements IXposedHookZygoteInit, IXposedHookLoadPackage {
 
     public static final int METHOD_LONG_PRESS = 0;
     public static final int METHOD_TWO_KEYS = 1;
-    public static final int METHOD_TOUCH = 4;
     public static final int METHOD_TEST = 2;
     public static final int METHOD_TIMETEST = 3;
+    public static final int METHOD_TOUCH = 4;
     public static final int METHOD_THREE_KEYS = 5;
 
     private static Activity currentActivity;
     private static boolean flagKeepScreenOn, systemwideScreenOn, isTouch;
 
     private static String applicationLabel;
+    private static String packageName;
 
-    //private static XSharedPreferences pref;
+    private static XSharedPreferences pref;
 
     //private static boolean active = true;
     private static boolean[] activeKeyPressed = new boolean[3];
@@ -68,6 +72,8 @@ public class Xposed implements IXposedHookZygoteInit, IXposedHookLoadPackage {
 
     private static boolean debug = false;
 
+    private static List<String> alwaysOnPackages;
+
     private static HashMap<String, View.OnKeyListener> listeners;
 
     @Override
@@ -77,10 +83,10 @@ public class Xposed implements IXposedHookZygoteInit, IXposedHookLoadPackage {
             @Override
             protected void afterHookedMethod(MethodHookParam param) throws Throwable {
                 currentActivity = (Activity) param.getResult();
+                //dont use currentactivity here
                 systemwideScreenOn = false;
                 flagKeepScreenOn = false;
-                //pref = new XSharedPreferences("io.kuenzler.android.stayawake", "user_settings");
-                currentMethode = METHOD_TWO_KEYS; //change to prefs in next release
+                currentMethode = METHOD_TWO_KEYS; //change to prefs
                 readPrefs();
             }
         });
@@ -89,12 +95,20 @@ public class Xposed implements IXposedHookZygoteInit, IXposedHookLoadPackage {
         findAndHookMethod(Activity.class, "onResume", new XC_MethodHook() {
             @Override
             protected void beforeHookedMethod(MethodHookParam param) throws Throwable {
-                //readPrefs();
+                readPrefs();
                 setApplicationLabel();
                 if (systemwideScreenOn) {
-                    //   setFlagKeepScreenOn(systemwideScreenOn, TYPE_APP);
+                    setFlagKeepScreenOn(systemwideScreenOn, TYPE_SYSTEM);
+                } else if (alwaysOnPackages.contains(packageName)) {
+                    String message = "Setting " + applicationLabel + " always on";
+                    log(message);
+                    showToast(message);
+                    setFlagKeepScreenOn(true, TYPE_APP);
+                } else if (systemwideScreenOn) {
+                    setFlagKeepScreenOn(true, TYPE_APP);
                 }
                 if (debug) {
+                    log("Resume to " + applicationLabel);
                     showToast("on resume, systemwide: " + String.valueOf(systemwideScreenOn) + ", app: " + String.valueOf(flagKeepScreenOn));
                 }
             }
@@ -111,7 +125,7 @@ public class Xposed implements IXposedHookZygoteInit, IXposedHookLoadPackage {
                 }
                 int keyCode = (int) param.args[0];
                 KeyEvent evt = (KeyEvent) param.args[1];
-                XposedBridge.log("KeyDown detected - " + keyCode + " - " + applicationLabel);
+                log("KeyDown detected - " + keyCode + " - " + applicationLabel);
 
 
                 if (currentMethode == METHOD_LONG_PRESS) {
@@ -255,7 +269,7 @@ public class Xposed implements IXposedHookZygoteInit, IXposedHookLoadPackage {
                             param.setResult(false);
                         }
                         int keyCode = (int) param.args[0];
-                        XposedBridge.log("KeyUp detected - " + keyCode + " .. " + applicationLabel);
+                        log("KeyUp detected - " + keyCode + " .. " + applicationLabel);
 
                         if (currentMethode == METHOD_LONG_PRESS) {
                             //long press stuff
@@ -319,8 +333,6 @@ public class Xposed implements IXposedHookZygoteInit, IXposedHookLoadPackage {
             } else {
                 currentActivity.getWindow().clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
             }
-            setSystemwide(keepScreenOn);
-            showToast("KEEP_SCREEN_ON is " + isFlagKeepScreenOn() + " systemwide");
         } else if (type == TYPE_APP) {
             flagKeepScreenOn = keepScreenOn;
             if (keepScreenOn) {
@@ -344,23 +356,34 @@ public class Xposed implements IXposedHookZygoteInit, IXposedHookLoadPackage {
      * refresh preferences
      */
     private void readPrefs() {
+        pref = new XSharedPreferences("io.kuenzler.android.stayawake", "user_settings");
         activeKeys[0] = BACK;
         activeKeys[1] = VOL_DOWN;
         activeKeys[2] = VOL_UP;
 
-        //not used for now
+        pref.reload();
+        List<String> packages = new LinkedList<String>();
+        if (pref.getBoolean("ingress", false)) {
+            packages.add("com.nianticproject.ingress");
+        }
+        if (pref.getBoolean("pokemonGo", false)) {
+            packages.add("com.nianticlabs.pokemongo");
+        }
+        alwaysOnPackages = packages;
 
-        // if (pref.hasFileChanged()) {
-        // pref.reload();
-        // }
+        debug = pref.getBoolean("debug", false);
+        systemwideScreenOn = pref.getBoolean("systemwide", false);
+
+        if (debug) {
+            showToast("StayAwake debug: size:" + alwaysOnPackages.size() + ", debug:" + debug + " systemwide:" + systemwideScreenOn);
+        }
 
         //activeKeys[0] = pref.getInt("key1", BACK);
         //activeKeys[1] = pref.getInt("key2", VOL_DOWN);
         //activeKeys[2] = pref.getInt("key3", VOL_UP);
 
         //active = pref.getBoolean("enabled", true);
-        //systemwideScreenOn = pref.getBoolean("systemwide", false);
-        //lastUpdate = System.currentTimeMillis();
+        lastUpdate = System.currentTimeMillis();
     }
 
     /**
@@ -369,11 +392,15 @@ public class Xposed implements IXposedHookZygoteInit, IXposedHookLoadPackage {
      * @param message Message to show
      */
     private void showToast(String message) {
-        Toast toast = Toast.makeText(currentActivity, message, Toast.LENGTH_SHORT);
-        TextView v = (TextView) toast.getView().findViewById(android.R.id.message);
-        if (v != null) v.setGravity(Gravity.CENTER);
-        XposedBridge.log("Showing Toast: " + message);
-        toast.show();
+        if (currentActivity != null) {
+            Toast toast = Toast.makeText(currentActivity, message, Toast.LENGTH_SHORT);
+            TextView v = (TextView) toast.getView().findViewById(android.R.id.message);
+            if (v != null) v.setGravity(Gravity.CENTER);
+            if (debug) {
+                log("Showing Toast: " + message);
+            }
+            toast.show();
+        }
     }
 
     /**
@@ -383,13 +410,14 @@ public class Xposed implements IXposedHookZygoteInit, IXposedHookLoadPackage {
     private void setApplicationLabel() {
         PackageManager pm;
         ApplicationInfo ai;
+        packageName = currentActivity.getPackageName();
         try {
             pm = currentActivity.getPackageManager();
             ai = pm.getApplicationInfo(currentActivity.getPackageName(), 0);
-            applicationLabel = (String) (ai != null ? pm.getApplicationLabel(ai) : currentActivity.getPackageName());
+            applicationLabel = (String) (ai != null ? pm.getApplicationLabel(ai) : packageName);
         } catch (PackageManager.NameNotFoundException | NullPointerException e) {
-            XposedBridge.log(e);
-            applicationLabel = currentActivity.getPackageName();
+            log(e);
+            applicationLabel = packageName;
         }
         if (applicationLabel == null) {
             applicationLabel = "App";
@@ -419,6 +447,30 @@ public class Xposed implements IXposedHookZygoteInit, IXposedHookLoadPackage {
         return Build.VERSION.SDK_INT >= Build.VERSION_CODES.KITKAT_WATCH && powerManager.isInteractive() || Build.VERSION.SDK_INT < Build.VERSION_CODES.KITKAT_WATCH && powerManager.isScreenOn();
     }
 
+    /**
+     * Logs given message if debug flag is set
+     *
+     * @param message message to log
+     * @see #debug
+     * @see XposedBridge#log(String)
+     */
+    private void log(String message) {
+        if (debug) {
+            XposedBridge.log(message);
+        }
+    }
+
+    /**
+     * Logs throwable
+     *
+     * @param t throwable to log
+     * @see XposedBridge#log(Throwable)
+     */
+    private void log(Throwable t) {
+        XposedBridge.log(t);
+    }
+
+
     @Override
     public void handleLoadPackage(final XC_LoadPackage.LoadPackageParam lpparam) throws Throwable {
         //check if module is enabled, used in ui
@@ -427,7 +479,7 @@ public class Xposed implements IXposedHookZygoteInit, IXposedHookLoadPackage {
                 @Override
                 protected void afterHookedMethod(MethodHookParam param) throws Throwable {
                     param.setResult(true);
-                    XposedBridge.log("Xposed Module in \"StayAwake\" is enabled");
+                    log("Xposed Module in \"StayAwake\" is enabled");
                 }
             });
         }

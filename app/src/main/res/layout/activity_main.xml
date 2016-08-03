@@ -23,7 +23,8 @@
         android:layout_below="@+id/tv1"
         android:layout_marginTop="30dp"
         android:text="StayAwake is active in Xposed framework."
-        android:textAppearance="?android:attr/textAppearanceSmall" />
+        android:textAppearance="?android:attr/textAppearanceSmall"
+        android:layout_alignParentLeft="true" />
 
     <TextView
         android:id="@+id/textView"
@@ -32,7 +33,8 @@
         android:layout_alignParentBottom="true"
         android:layout_alignParentStart="true"
         android:text="(c) 2016 - Leonhard Künzler"
-        android:textAppearance="?android:attr/textAppearanceSmall" />
+        android:textAppearance="?android:attr/textAppearanceSmall"
+        android:layout_alignParentLeft="true" />
 
     <TextView
         android:id="@+id/tvLink"
@@ -43,7 +45,8 @@
         android:clickable="true"
         android:onClick="showWebsite"
         android:text="www.kuenzler.io"
-        android:textAppearance="?android:attr/textAppearanceSmall" />
+        android:textAppearance="?android:attr/textAppearanceSmall"
+        android:layout_alignParentRight="true" />
 
     <TextView
         android:id="@+id/textView2"
@@ -52,6 +55,69 @@
         android:layout_alignParentStart="true"
         android:layout_below="@+id/tv2"
         android:layout_marginTop="30dp"
-        android:text="If you have questions or problems, write me to android@kuenzler.io or open an issue at www.github.com/92lleo/stayawake/issues"
-        android:textAppearance="?android:attr/textAppearanceSmall" />
+        android:text="If you have questions or problems, write me to android@kuenzler.io or open an issue at www.github.com/92lleo/stayawake/issues\nSince Niantic Apps (PokemonGo &amp; Ingress) cause Problems with the key combinations, you can set it always on here."
+        android:textAppearance="?android:attr/textAppearanceSmall"
+        android:layout_alignParentLeft="true" />
+
+    <CheckBox
+        android:id="@+id/cbPokemonGo"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_alignParentLeft="true"
+        android:layout_alignParentStart="true"
+        android:layout_below="@+id/textView2"
+        android:layout_marginTop="23dp"
+        android:checked="false"
+        android:onClick="cbChanged"
+        android:tag="pokemon"
+        android:text="Always On: Pokémon Go" />
+
+    <CheckBox
+        android:id="@+id/cbIngress"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_alignParentLeft="true"
+        android:layout_alignParentStart="true"
+        android:layout_below="@+id/cbPokemonGo"
+        android:checked="false"
+        android:onClick="cbChanged"
+        android:tag="ingress"
+        android:text="Always On: Ingress" />
+
+    <CheckBox
+        android:id="@+id/cbDebug"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_alignParentLeft="true"
+        android:layout_alignParentStart="true"
+        android:layout_below="@+id/cbHideLauncherIcon"
+        android:checked="false"
+        android:onClick="cbChanged"
+        android:tag="debug"
+        android:text="debug (detailed log output)" />
+
+    <CheckBox
+        android:id="@+id/cbHideLauncherIcon"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="24dp"
+        android:checked="false"
+        android:onClick="cbChanged"
+        android:tag="launcher"
+        android:text="Hide Launcher Icon (experimental! may not work)"
+        android:layout_below="@+id/cbAll"
+        android:layout_alignParentLeft="true"
+        android:layout_alignParentStart="true" />
+
+    <CheckBox
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Always On: Every App (systemwide)"
+        android:onClick="cbChanged"
+        android:tag="all"
+        android:id="@+id/cbAll"
+        android:layout_below="@+id/cbIngress"
+        android:layout_alignParentLeft="true"
+        android:layout_alignParentStart="true"
+        android:checked="false" />
 </RelativeLayout>
